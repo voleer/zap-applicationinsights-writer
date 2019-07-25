@@ -8,7 +8,6 @@ import (
 
 	"github.com/Microsoft/ApplicationInsights-Go/appinsights"
 	"github.com/Microsoft/ApplicationInsights-Go/appinsights/contracts"
-
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )

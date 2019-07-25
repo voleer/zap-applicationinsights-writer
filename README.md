@@ -17,10 +17,11 @@ A complete example for setting up zap with application insights integreation:
     var baseLogger *zap.Logger
 
     func init() {
-        core, fieldsOption, _ := zapappinsigths.NewAppInsightsCore(zapappinsigths.Config{
+        core, fieldsOption, _ := zapappinsights.NewAppInsightsCore(zapappinsights.Config{
             InstrumentationKey: "Enter your Ikey",
-            MaxBatchSize:       10,              // optional
-            MaxBatchInterval:   time.Second * 5, // optional
+            MinLogLevel:        zapcore.WarnLevel,  // optional
+            MaxBatchSize:       10,                 // optional
+            MaxBatchInterval:   time.Second * 5,    // optional
         })
         baseLogger = zap.New(core, fieldsOption)
         defer baseLogger.Sync()
@@ -36,4 +37,4 @@ A complete example for setting up zap with application insights integreation:
 
 ## Notes
 
-* currently only custom dimension supported for traces (custom metrics are not supported)
+- currently only custom dimension supported for traces (custom metrics are not supported)
