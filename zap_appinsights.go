@@ -157,6 +157,6 @@ func (appInsightsConfig *AppInsightsConfig) Write(p []byte) (int, error) {
 // is higher than the minimum log level, and false otherwise.
 func minLogLevelFilter(minLevel zapcore.Level) func(zapcore.Level) bool {
 	return func(lvl zapcore.Level) bool {
-		return lvl >= minLevel
+		return minLevel.Enabled(lvl)
 	}
 }
