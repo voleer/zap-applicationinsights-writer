@@ -1,4 +1,4 @@
-package zapappinsigths
+package zapappinsights
 
 import (
 	"encoding/json"
@@ -25,12 +25,14 @@ type AppInsightsConfig struct {
 type Config struct {
 	InstrumentationKey string
 	EndpointURL        string
+	MinLogLevel        zapcore.Level
 	MaxBatchSize       int
 	MaxBatchInterval   time.Duration
 }
 
 func NewAppInsightsCore(conf Config, fs ...zapcore.Field) (zapcore.Core, zap.Option, error) {
-	allLevels := zap.LevelEnablerFunc(func(l zapcore.Level) bool { return true })
+	// Prepare the zap writer
+	logLevelFilter := zap.LevelEnablerFunc(minLogLevelFilter(conf.MinLogLevel))
 
 	config := zap.NewProductionEncoderConfig()
 	config.EncodeLevel = appInsightsLevelEncoder
@@ -38,14 +40,15 @@ func NewAppInsightsCore(conf Config, fs ...zapcore.Field) (zapcore.Core, zap.Opt
 
 	option := zap.Fields(append(fs)...)
 
+	// Prepare the AppInsights client
 	if conf.InstrumentationKey == "" {
 		return nil, nil, fmt.Errorf("InstrumentationKey is required and missing from configuration")
 	}
 	telemetryConf := appinsights.NewTelemetryConfiguration(conf.InstrumentationKey)
-	if conf.MaxBatchSize != 0 {
+	if conf.MaxBatchSize > 0 {
 		telemetryConf.MaxBatchSize = conf.MaxBatchSize
 	}
-	if conf.MaxBatchInterval != 0 {
+	if conf.MaxBatchInterval > 0 {
 		telemetryConf.MaxBatchInterval = conf.MaxBatchInterval
 	}
 	if conf.EndpointURL != "" {
@@ -60,7 +63,7 @@ func NewAppInsightsCore(conf Config, fs ...zapcore.Field) (zapcore.Core, zap.Opt
 	}
 	syncer := New(&appInsightsConfig)
 
-	return zapcore.NewCore(jsonEncode, syncer, allLevels), option, nil
+	return zapcore.NewCore(jsonEncode, syncer, logLevelFilter), option, nil
 }
 
 var defaultLevels = []zapcore.Level{
@@ -106,8 +109,11 @@ func New(appInsightsConfig *AppInsightsConfig) zapcore.WriteSyncer {
 	return appInsightsConfig
 }
 
+// Sync flushes the buffered App Insights data (if any).
 func (appInsightsConfig *AppInsightsConfig) Sync() error {
-	// currently a noop.
+	if channel := appInsightsConfig.client.Channel(); channel != nil {
+		channel.Flush()
+	}
 	return nil
 }
 
@@ -122,13 +128,13 @@ func BuildTrace(data map[string]interface{}) *appinsights.TraceTelemetry {
 			break
 		default:
 			// Currently AppInsights Go SDK only support custom dimension (filter with string values)
-			switch v.(type) {
+			switch val := v.(type) {
 			case int:
-				trace.BaseTelemetry.Properties[k] = string(v.(int))
+				trace.BaseTelemetry.Properties[k] = string(val)
 			case string:
-				trace.BaseTelemetry.Properties[k] = v.(string)
+				trace.BaseTelemetry.Properties[k] = val
 			case float64:
-				trace.BaseTelemetry.Properties[k] = strconv.FormatFloat(v.(float64), 'f', 6, 64)
+				trace.BaseTelemetry.Properties[k] = strconv.FormatFloat(val, 'f', 6, 64)
 			}
 		}
 	}
@@ -146,4 +152,12 @@ func (appInsightsConfig *AppInsightsConfig) Write(p []byte) (int, error) {
 	go appInsightsConfig.client.Track(trace)
 
 	return len(trace.Message), nil
+}
+
+// minLogLevelFilter creates a log level filter func that returns true if the log level
+// is higher than the minimum log level, and false otherwise.
+func minLogLevelFilter(minLevel zapcore.Level) func(zapcore.Level) bool {
+	return func(lvl zapcore.Level) bool {
+		return lvl >= minLevel
+	}
 }
