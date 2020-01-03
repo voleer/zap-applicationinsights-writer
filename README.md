@@ -11,7 +11,7 @@ A complete example for setting up zap with application insights integreation:
 
         "go.uber.org/zap"
 
-        "github.com/Ilanak/zap-applicationinsights-writer"
+        "github.com/voleer/zap-applicationinsights-writer"
     )
 
     var baseLogger *zap.Logger

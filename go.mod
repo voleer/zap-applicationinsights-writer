@@ -1,4 +1,4 @@
-module github.com/Ilanak/zap-applicationinsights-writer
+module github.com/voleer/zap-applicationinsights-writer
 
 go 1.12
 
